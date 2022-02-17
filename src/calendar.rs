@@ -55,7 +55,7 @@ pub trait CalendarProtocol {
     ) -> FromYMDResult;
 }
 
-struct IsoCalendar;
+pub(crate) struct IsoCalendar;
 
 mod impls;
 

@@ -5,6 +5,12 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies]
+phf = { version = "0.10", default-features = false, features = ["uncased"] }
+uncased = { version = "0.9", default-features = false }
+
 [build-dependencies]
 parse-zoneinfo = { version = "0.3" }
+phf = { version = "0.10", default-features = false, features = ["uncased"] }
 phf_codegen = { version = "0.10", default-features = false }
+uncased = { version = "0.9", default-features = false }

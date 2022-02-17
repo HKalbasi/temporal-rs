@@ -6,10 +6,10 @@ use super::calendar::*;
 
 #[derive(Clone, Copy)]
 pub struct PlainDate<C: CalendarProtocol = Calendar> {
-    calendar: C,
-    iso_year: i32,
-    iso_month: u8,
-    iso_day: u16,
+    pub(crate) calendar: C,
+    pub(crate) iso_year: i32,
+    pub(crate) iso_month: u8,
+    pub(crate) iso_day: u16,
 }
 
 const _: () = assert!(core::mem::size_of::<PlainDate>() == 8);

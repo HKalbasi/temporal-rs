@@ -1,3 +1,6 @@
+// This code is included from chrono-tz; credits belongs to them
+
+
 #[cfg(feature = "filter-by-regex")]
 extern crate regex;
 
@@ -71,7 +74,7 @@ fn write_timezone_file(timezone_file: &mut File, table: &Table) -> io::Result<()
     writeln!(timezone_file, "use core::str::FromStr;\n",)?;
     writeln!(
         timezone_file,
-        "use ::timezone_impl::{{TimeSpans, FixedTimespanSet, FixedTimespan}};\n",
+        "use super::timezone_impl::{{TimeSpans, FixedTimespanSet, FixedTimespan}};\n",
     )?;
     writeln!(
         timezone_file,
@@ -99,7 +102,6 @@ fn write_timezone_file(timezone_file: &mut File, table: &Table) -> io::Result<()
     }
     writeln!(timezone_file, "static TIMEZONES: ::phf::Map<&'static str, Tz> = \n{};", map.build())?;
 
-    #[cfg(feature = "case-insensitive")]
     {
         writeln!(timezone_file, "use uncased::UncasedStr;\n",)?;
         let mut map = phf_codegen::Map::new();
@@ -153,12 +155,10 @@ impl FromStr for Tz {{
     }}"
     )?;
 
-    #[cfg(feature = "case-insensitive")]
     {
         writeln!(
             timezone_file,
             r#"
-    #[cfg(feature = "case-insensitive")]
     /// Parses a timezone string in a case-insensitive way
     pub fn from_str_insensitive(s: &str) -> Result<Self, ParseError> {{
         #[cfg(feature = "std")]
@@ -222,24 +222,6 @@ impl FromStr for Tz {{
     }}
 }}\n"
     )?;
-    write!(
-        timezone_file,
-        "/// An array of every known variant
-///
-/// Useful for iterating over known timezones:
-///
-/// ```
-/// use chrono_tz::{{TZ_VARIANTS, Tz}};
-/// assert!(TZ_VARIANTS.iter().any(|v| *v == Tz::UTC));
-/// ```
-pub static TZ_VARIANTS: [Tz; {num}] = [
-",
-        num = zones.len()
-    )?;
-    for zone in &zones {
-        writeln!(timezone_file, "    Tz::{zone},", zone = convert_bad_chars(zone))?;
-    }
-    write!(timezone_file, "];")?;
     Ok(())
 }
 
