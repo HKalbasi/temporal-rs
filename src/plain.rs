@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::iso;
+use crate::iso::{self, IsoDate};
 
 use super::calendar::*;
 
@@ -19,12 +19,9 @@ pub struct MaybeOutOfRangePlainDate<C: CalendarProtocol>(FromYMDResult, C);
 impl<C: CalendarProtocol> MaybeOutOfRangePlainDate<C> {
     pub fn constrain(self) -> PlainDate<C> {
         match self.0 {
-            FromYMDResult::Normal(x) | FromYMDResult::OverflowConstrained(x) => PlainDate {
-                calendar: self.1,
-                iso_day: x.day,
-                iso_month: x.month,
-                iso_year: x.year,
-            },
+            FromYMDResult::Normal(x) | FromYMDResult::OverflowConstrained(x) => {
+                PlainDate::from_iso_date(x, self.1)
+            }
         }
     }
 }
@@ -40,24 +37,25 @@ impl<C: CalendarProtocol> PlainDate<C> {
         MaybeOutOfRangePlainDate(calendar.from_ymd(year, month, day), calendar)
     }
 
-    pub fn iso_year(&self) -> i32 {
-        self.iso_year
+    pub fn from_iso_date(iso_date: IsoDate, calendar: C) -> Self {
+        Self {
+            calendar,
+            iso_day: iso_date.day(),
+            iso_month: iso_date.month(),
+            iso_year: iso_date.year(),
+        }
     }
-    pub fn iso_month(&self) -> u8 {
-        self.iso_month
-    }
-    pub fn iso_day(&self) -> u16 {
-        self.iso_day
+
+    pub fn iso_date(&self) -> IsoDate {
+        IsoDate::new_unchecked(self.iso_year, self.iso_month, self.iso_day)
     }
 
     pub fn year(&self) -> i32 {
-        self.calendar
-            .year(self.iso_year, self.iso_month, self.iso_day)
+        self.calendar.year(self.iso_date())
     }
 
     pub fn month(&self) -> u32 {
-        self.calendar
-            .month(self.iso_year, self.iso_month, self.iso_day)
+        self.calendar.month(self.iso_date())
     }
 }
 
@@ -65,11 +63,6 @@ impl FromStr for PlainDate {
     type Err = ();
     fn from_str(x: &str) -> Result<Self, ()> {
         let i = iso::parse(x).ok_or(())?.date;
-        Ok(Self {
-            calendar: Calendar::Iso8601,
-            iso_year: i.year,
-            iso_month: i.month,
-            iso_day: i.day,
-        })
+        Ok(Self::from_iso_date(i, Calendar::Iso8601))
     }
 }

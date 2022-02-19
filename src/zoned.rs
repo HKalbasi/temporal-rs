@@ -15,17 +15,7 @@ pub struct ZonedDateTime<T: TimeZoneProtocol = TimeZone, C: CalendarProtocol = C
 
 impl<T: TimeZoneProtocol, C: CalendarProtocol> From<ZonedDateTime<T, C>> for PlainDate<C> {
     fn from(z: ZonedDateTime<T, C>) -> Self {
-        let IsoDate {
-            year: iso_year,
-            month: iso_month,
-            day: iso_day,
-        } = z.iso_date();
-        Self {
-            calendar: z.calendar,
-            iso_day,
-            iso_month,
-            iso_year,
-        }
+        Self::from_iso_date(z.iso_date(), z.calendar)
     }
 }
 
@@ -36,16 +26,13 @@ impl<T: TimeZoneProtocol, C: CalendarProtocol> ZonedDateTime<T, C> {
     }
 
     pub fn year(&self) -> i32 {
-        let IsoDate { year, month, day } = self.iso_date();
-        self.calendar.year(year, month, day)
+        self.calendar.year(self.iso_date())
     }
     pub fn month(&self) -> u32 {
-        let IsoDate { year, month, day } = self.iso_date();
-        self.calendar.month(year, month, day)
+        self.calendar.month(self.iso_date())
     }
     pub fn day(&self) -> u32 {
-        let IsoDate { year, month, day } = self.iso_date();
-        self.calendar.day(year, month, day)
+        self.calendar.day(self.iso_date())
     }
     pub fn hour(&self) -> u8 {
         let secs = self.epoch.as_secs() + self.timezone.get_second_offset(self.epoch.as_secs());

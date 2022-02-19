@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 phf = { version = "0.10", default-features = false, features = ["uncased"] }
 uncased = { version = "0.9", default-features = false }
+icu_calendar = "0.5.0"
+
 
 [build-dependencies]
 parse-zoneinfo = { version = "0.3" }

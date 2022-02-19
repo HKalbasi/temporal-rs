@@ -9,6 +9,8 @@ pub use calendar::{Calendar, CalendarProtocol, Era};
 pub use plain::PlainDate;
 pub use zoned::ZonedDateTime;
 pub use timezone::{TimeZone, TimeZoneProtocol};
+pub use duration::{SignedDuration, NominalDuration};
+pub use iso::{IsoDate, IsoTime};
 
 #[cfg(test)]
 mod tests {

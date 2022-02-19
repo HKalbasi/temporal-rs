@@ -1,21 +1,38 @@
 use std::{iter::Peekable, str::Chars};
 
+use icu_calendar::{Date, Iso};
+
 use crate::{calendar::IsoCalendar, CalendarProtocol};
 
-#[derive(Debug)]
+/// Represents a valid iso date, with -271820 <= year <= 275759
+#[derive(Debug, Clone, Copy)]
 pub struct IsoDate {
-    pub year: i32,
-    pub month: u8,
-    pub day: u16,
+    year: i32,
+    month: u8,
+    day: u8,
 }
 
 impl IsoDate {
+    pub fn year(&self) -> i32 {
+        self.year
+    }
+    pub fn month(&self) -> u8 {
+        self.month
+    }
+    pub fn day(&self) -> u16 {
+        self.day.into()
+    }
+
+    pub(crate) fn to_icu_date(&self) -> Date<Iso> {
+        Date::new_iso_date_from_integers(self.year, self.month, self.day).unwrap()
+    }
+
     pub(crate) fn to_epoch_second(&self) -> i64 {
         let mut days: i64 = (self.year - 1970) as i64 * 365i64;
         days += (self.year - 1969).div_euclid(4) as i64;
         days -= (self.year - 1901).div_euclid(100) as i64;
         days += (self.year - 1601).div_euclid(400) as i64;
-        days += IsoCalendar.day_of_year(self.year, self.month, self.day) as i64;
+        days += IsoCalendar.day_of_year(*self) as i64;
         days * 24 * 60 * 60
     }
 
@@ -57,8 +74,25 @@ impl IsoDate {
         Self {
             year: (years + 2000) as i32,
             month: months as u8,
-            day: days as u16,
+            day: days as u8,
         }
+    }
+
+    pub(crate) const MIN_YEAR: i32 = -271820;
+    pub(crate) const MAX_YEAR: i32 = 275759;
+
+    pub fn new(year: i32, month: u8, day: u8) -> Option<IsoDate> {
+        if year < Self::MIN_YEAR || year > Self::MAX_YEAR {
+            return None;
+        }
+        if Date::new_iso_date_from_integers(year, month, day).is_err() {
+            return None;
+        }
+        Some(Self::new_unchecked(year, month, day.into()))
+    }
+
+    pub(crate) fn new_unchecked(year: i32, month: u8, day: u16) -> IsoDate {
+        IsoDate { year, month, day: day as u8 }
     }
 }
 
@@ -92,18 +126,16 @@ impl IsoTime {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IsoNumericOffset {
     is_neg: bool,
-    hour: u8,
-    minute: u8,
+    time: IsoTime,
 }
 
 impl IsoNumericOffset {
     pub(crate) fn to_seconds(&self) -> i32 {
-        let h = self.hour as i32;
-        let m = self.minute as i32;
+        let x = self.time.to_second();
         if self.is_neg {
-            -h * 3600 - m * 60
+            -x
         } else {
-            h * 3600 + m * 60
+            x
         }
     }
 }
@@ -222,16 +254,8 @@ fn parse_root(it: &mut It<'_>) -> Option<IsoParsed> {
 fn parse_numeric_timezone(it: &mut Peekable<Chars>) -> Option<IsoNumericOffset> {
     let c = it.next()?;
     let is_neg = parse_sign(c)?;
-    let (hour, minute) = match parse_two_digit_colon(it, true)?.as_slice() {
-        [h, m] => (*h, *m),
-        [h] => (*h, 0),
-        _ => return None,
-    };
-    Some(IsoNumericOffset {
-        hour,
-        is_neg,
-        minute,
-    })
+    let time = parse_time(it, true)?;
+    Some(IsoNumericOffset { is_neg, time })
 }
 
 pub(crate) fn parse_time(it: &mut It<'_>, colon_optional: bool) -> Option<IsoTime> {
@@ -279,8 +303,8 @@ fn parse_date(it: &mut Peekable<Chars>) -> Option<IsoDate> {
     eat_char(it, '-')?;
     let month = parse_num(it, 2)? as u8;
     eat_char(it, '-')?;
-    let day = parse_num(it, 2)? as u16;
-    Some(IsoDate { day, month, year })
+    let day = parse_num(it, 2)? as u8;
+    IsoDate::new(year, month, day)
 }
 
 fn eat_char(it: &mut It<'_>, c: char) -> Option<()> {

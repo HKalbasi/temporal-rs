@@ -1,3 +1,5 @@
+use std::cmp::{max, min};
+
 use super::*;
 
 #[allow(unused)]
@@ -6,121 +8,87 @@ impl CalendarProtocol for IsoCalendar {
         "iso8601".to_string()
     }
 
-    fn era(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> Option<Era> {
+    fn era(&self, iso_date: IsoDate) -> Option<Era> {
         None
     }
 
-    fn year(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> i32 {
-        iso_year
+    fn year(&self, iso_date: IsoDate) -> i32 {
+        iso_date.year()
     }
 
-    fn month(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
-        iso_month.into()
+    fn month(&self, iso_date: IsoDate) -> u32 {
+        iso_date.month().into()
     }
 
-    fn month_code(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> String {
-        format!("M{}", iso_month)
+    fn month_code(&self, iso_date: IsoDate) -> String {
+        format!("M{}", iso_date.month())
     }
 
-    fn day(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
-        iso_day.into()
+    fn day(&self, iso_date: IsoDate) -> u32 {
+        iso_date.day().into()
     }
 
-    fn day_of_week(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
+    fn day_of_week(&self, iso_date: IsoDate) -> u32 {
+        iso_date.to_icu_date().day_of_week() as u32
+    }
+
+    fn day_of_year(&self, iso_date: IsoDate) -> u32 {
+        iso_date.to_icu_date().day_of_year_info().day_of_year
+    }
+
+    fn week_of_year(&self, iso_date: IsoDate) -> u32 {
         todo!()
     }
 
-    fn day_of_year(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
-        let mut r = iso_day.into();
-        for i in 1..iso_month {
-            r += self.days_in_month(iso_year, i, 1);
-        }
-        r
-    }
-
-    fn week_of_year(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
-        todo!()
-    }
-
-    fn days_in_week(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
+    fn days_in_week(&self, iso_date: IsoDate) -> u32 {
         7
     }
 
-    fn days_in_month(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
-        const MONTHS: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        if iso_month == 2 && self.in_leap_year(iso_year, iso_month, iso_day) {
-            29
-        } else {
-            MONTHS[usize::from(iso_month) - 1].into()
-        }
+    fn days_in_month(&self, iso_date: IsoDate) -> u32 {
+        iso_date.to_icu_date().days_in_month().into()
     }
 
-    fn days_in_year(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
-        if self.in_leap_year(iso_year, iso_month, iso_day) {
-            366
-        } else {
-            365
-        }
+    fn days_in_year(&self, iso_date: IsoDate) -> u32 {
+        iso_date.to_icu_date().days_in_year()
     }
 
-    fn months_in_year(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> u32 {
+    fn months_in_year(&self, iso_date: IsoDate) -> u32 {
         12
     }
 
-    fn in_leap_year(&self, iso_year: i32, iso_month: u8, iso_day: u16) -> bool {
-        iso_year % 4 == 0 && (iso_year % 100 != 0 || iso_year % 400 == 0)
+    fn in_leap_year(&self, iso_date: IsoDate) -> bool {
+        iso_date.to_icu_date().days_in_year() == 366
     }
 
     fn from_ymd(&self, year: i32, month: u32, day: u32) -> FromYMDResult {
-        if month == 0 || day == 0 {
-            panic!("month and day should be positive");
-        }
-        if month > 12 {
-            FromYMDResult::OverflowConstrained(IsoDate {
-                year,
-                month: 12,
-                day: if day > 31 {
-                    31
-                } else {
-                    day.try_into().unwrap()
-                },
-            })
-        } else {
-            let month = month.try_into().unwrap();
-            let l = self.days_in_month(year, month, 1);
-            if day > l {
-                FromYMDResult::OverflowConstrained(IsoDate {
-                    year,
-                    month,
-                    day: l.try_into().unwrap(),
-                })
-            } else {
-                let day = day.try_into().unwrap();
-                FromYMDResult::OverflowConstrained(IsoDate { year, month, day })
+        if let Ok(month) = month.try_into() {
+            if let Ok(day) = day.try_into() {
+                if let Some(x) = IsoDate::new(year, month, day) {
+                    return FromYMDResult::Normal(x);
+                }
             }
         }
+        let year = max(min(year, IsoDate::MAX_YEAR), IsoDate::MIN_YEAR);
+        let month = max(min(month, 12), 1) as u8;
+        let max_day = self.days_in_month(IsoDate::new_unchecked(year, month, 1));
+        let day = max(min(day, max_day), 1) as u16;
+        FromYMDResult::OverflowConstrained(IsoDate::new_unchecked(year, month, day))
     }
 
-    fn date_add(
-        &self,
-        iso_year: i32,
-        iso_month: u8,
-        iso_day: u16,
-        dur: NominalDuration,
-    ) -> FromYMDResult {
-        fn balance_year_month(year: i32, month: i32) -> (i32, u8) {
+    fn date_add(&self, iso_date: IsoDate, dur: NominalDuration) -> FromYMDResult {
+        /*fn balance_year_month(year: i32, month: i32) -> (i32, u8) {
             (
                 year + (month - 1).div_euclid(12),
                 (month - 1).rem_euclid(12).try_into().unwrap(),
             )
         }
         let (mut r_year, mut r_month) = balance_year_month(
-            iso_year + dur.years(),
-            iso_month as i32 + dur.months(),
+            iso_date.year + dur.years(),
+            iso_date.month() as i32 + dur.months(),
         );
         let mut need_constrain = false;
-        let mut r_day: i32 = iso_day.into();
-        if self.days_in_month(r_year, r_month, 1) > iso_day.into() {
+        let mut r_day: i32 = iso_date.day().into();
+        if self.days_in_month(r_year, r_month, 1) > iso_date.day().into() {
             need_constrain = true;
             r_day = self.days_in_month(r_year, r_month, 1).try_into().unwrap();
         }
@@ -151,10 +119,11 @@ impl CalendarProtocol for IsoCalendar {
             month: r_month,
             year: r_year,
         };
-        if need_constrain {    
+        if need_constrain {
             FromYMDResult::OverflowConstrained(iso_date)
         } else {
-            FromYMDResult::Normal(iso_date)    
-        }
+            FromYMDResult::Normal(iso_date)
+        }*/
+        todo!()
     }
 }
