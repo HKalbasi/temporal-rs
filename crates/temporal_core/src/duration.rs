@@ -1,4 +1,4 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, Duration, UNIX_EPOCH};
 
 use crate::iso;
 
@@ -52,10 +52,30 @@ pub struct SignedDuration {
     nanos: u32, // Always 0 <= nanos < NANOS_PER_SEC
 }
 
+impl TryFrom<SignedDuration> for Duration {
+    type Error = <i64 as TryFrom<u64>>::Error;
+
+    fn try_from(value: SignedDuration) -> Result<Self, Self::Error> {
+        Ok(Self::new(value.as_secs().try_into()?, value.subsec_nanos()))
+    }
+}
+
+impl TryFrom<Duration> for SignedDuration {
+    type Error = <i64 as TryFrom<u64>>::Error;
+
+    fn try_from(value: Duration) -> Result<Self, Self::Error> {
+        Ok(Self::new_unchecked(value.as_secs().try_into()?, value.subsec_nanos()))
+    }
+}
+
 impl SignedDuration {
     pub fn now() -> Self {
         let now = SystemTime::now();
         Self::from_system_time_since_unix(now)
+    }
+
+    pub(crate) fn new_unchecked(secs: i64, nanos: u32) -> Self {
+        Self { secs, nanos }
     }
 
     pub fn new(mut secs: i64, nanos: i32) -> Self {
@@ -103,5 +123,9 @@ impl SignedDuration {
 
     pub fn as_secs(&self) -> i64 {
         self.secs
+    }
+
+    pub fn subsec_nanos(&self) -> u32 {
+        self.nanos
     }
 }

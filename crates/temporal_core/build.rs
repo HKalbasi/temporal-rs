@@ -1,6 +1,5 @@
 // This code is included from chrono-tz; credits belongs to them
 
-
 #[cfg(feature = "filter-by-regex")]
 extern crate regex;
 
@@ -34,7 +33,15 @@ fn strip_comments(mut line: String) -> String {
 // to this zone, as a string representation of a static slice.
 fn format_rest(rest: Vec<(i64, FixedTimespan)>) -> String {
     let mut ret = "&[\n".to_string();
-    for (start, FixedTimespan { utc_offset, dst_offset, name }) in rest {
+    for (
+        start,
+        FixedTimespan {
+            utc_offset,
+            dst_offset,
+            name,
+        },
+    ) in rest
+    {
         ret.push_str(&format!(
             "                    ({start}, FixedTimespan {{ \
              utc_offset: {utc}, dst_offset: {dst}, name: \"{name}\" \
@@ -55,7 +62,12 @@ fn format_rest(rest: Vec<(i64, FixedTimespan)>) -> String {
 fn convert_bad_chars(name: &str) -> String {
     let name = name.replace("/", "__").replace("+", "Plus");
     if let Some(pos) = name.find('-') {
-        if name[pos + 1..].chars().next().map(char::is_numeric).unwrap_or(false) {
+        if name[pos + 1..]
+            .chars()
+            .next()
+            .map(char::is_numeric)
+            .unwrap_or(false)
+        {
             name.replace("-", "Minus")
         } else {
             name.replace("-", "")
@@ -69,8 +81,15 @@ fn convert_bad_chars(name: &str) -> String {
 // database. The `Wrap` wrapper in the `timezone_impl` module then implements
 // TimeZone for any contained struct that implements `Timespans`.
 fn write_timezone_file(timezone_file: &mut File, table: &Table) -> io::Result<()> {
-    let zones = table.zonesets.keys().chain(table.links.keys()).collect::<BTreeSet<_>>();
-    writeln!(timezone_file, "use core::fmt::{{self, Debug, Display, Formatter}};",)?;
+    let zones = table
+        .zonesets
+        .keys()
+        .chain(table.links.keys())
+        .collect::<BTreeSet<_>>();
+    writeln!(
+        timezone_file,
+        "use core::fmt::{{self, Debug, Display, Formatter}};",
+    )?;
     writeln!(timezone_file, "use core::str::FromStr;\n",)?;
     writeln!(
         timezone_file,
@@ -84,7 +103,10 @@ fn write_timezone_file(timezone_file: &mut File, table: &Table) -> io::Result<()
 /// construct chrono's DateTime type. See the root module documentation
 /// for details."
     )?;
-    writeln!(timezone_file, "#[derive(Clone, Copy, PartialEq, Eq, Hash)]\npub enum Tz {{")?;
+    writeln!(
+        timezone_file,
+        "#[derive(Clone, Copy, PartialEq, Eq, Hash)]\npub enum Tz {{"
+    )?;
     for zone in &zones {
         let zone_name = convert_bad_chars(zone);
         writeln!(
@@ -100,19 +122,28 @@ fn write_timezone_file(timezone_file: &mut File, table: &Table) -> io::Result<()
     for zone in &zones {
         map.entry(zone, &format!("Tz::{}", convert_bad_chars(zone)));
     }
-    writeln!(timezone_file, "static TIMEZONES: ::phf::Map<&'static str, Tz> = \n{};", map.build())?;
+    writeln!(
+        timezone_file,
+        "static TIMEZONES: ::phf::Map<&'static str, Tz> = \n{};",
+        map.build()
+    )?;
 
     {
         writeln!(timezone_file, "use uncased::UncasedStr;\n",)?;
         let mut map = phf_codegen::Map::new();
         for zone in &zones {
-            map.entry(uncased::UncasedStr::new(zone), &format!("Tz::{}", convert_bad_chars(zone)));
+            map.entry(
+                uncased::UncasedStr::new(zone),
+                &format!("Tz::{}", convert_bad_chars(zone)),
+            );
         }
         writeln!(
             timezone_file,
             "static TIMEZONES_UNCASED: ::phf::Map<&'static uncased::UncasedStr, Tz> = \n{};",
             // FIXME(petrosagg): remove this once rust-phf/rust-phf#232 is released
-            map.build().to_string().replace("::std::mem::transmute", "::core::mem::transmute")
+            map.build()
+                .to_string()
+                .replace("::std::mem::transmute", "::core::mem::transmute")
         )?;
     }
 
@@ -238,7 +269,11 @@ fn write_directory_file(directory_file: &mut File, table: &Table) -> io::Result<
         .collect::<BTreeSet<_>>();
     for zone in zones {
         let zone = convert_bad_chars(zone);
-        writeln!(directory_file, "pub const {name} : Tz = Tz::{name};", name = zone)?;
+        writeln!(
+            directory_file,
+            "pub const {name} : Tz = Tz::{name};",
+            name = zone
+        )?;
     }
     writeln!(directory_file)?;
 
@@ -254,7 +289,11 @@ fn write_directory_file(directory_file: &mut File, table: &Table) -> io::Result<
             match child {
                 Child::Submodule(name) => {
                     let submodule_name = convert_bad_chars(name);
-                    writeln!(directory_file, "    pub mod {name} {{", name = submodule_name)?;
+                    writeln!(
+                        directory_file,
+                        "    pub mod {name} {{",
+                        name = submodule_name
+                    )?;
                     writeln!(directory_file, "        use timezones::Tz;\n",)?;
                     let full_name = entry.name.to_string() + "/" + name;
                     for entry in table.structure() {
@@ -401,7 +440,9 @@ mod filter {
         }
 
         // Actually do the filtering.
-        table.links.retain(|k, v| keep.contains(k) || keep.contains(v));
+        table
+            .links
+            .retain(|k, v| keep.contains(k) || keep.contains(v));
 
         table
             .zonesets
@@ -431,7 +472,12 @@ pub fn main() {
         .iter()
         .map(Path::new)
         .map(|p| {
-            Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| String::new())).join(p)
+            Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| String::new()))
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join(p)
         })
         .map(|path| {
             File::open(&path).unwrap_or_else(|e| panic!("cannot open {}: {}", path.display(), e))
