@@ -2,6 +2,9 @@
 name = "temporal_intl"
 version = "0.0.1"
 edition = "2021"
+description = "I18n formatting for temporal_core"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/HKalbasi/temporal-rs"
 
 [dependencies]
 temporal_core = { path = "../temporal_core", version = "0.0.1" }
