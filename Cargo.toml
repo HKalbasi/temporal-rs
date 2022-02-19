@@ -2,4 +2,5 @@
 
 members = [
     "crates/temporal_core",
+    "crates/temporal_intl",
 ]
