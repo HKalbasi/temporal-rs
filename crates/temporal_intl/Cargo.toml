@@ -4,4 +4,4 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-temporal_core = { path = "../temporal_core" }
+temporal_core = { path = "../temporal_core", version = "0.0.1" }
