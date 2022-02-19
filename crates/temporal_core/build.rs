@@ -472,12 +472,7 @@ pub fn main() {
         .iter()
         .map(Path::new)
         .map(|p| {
-            Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| String::new()))
-                .parent()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .join(p)
+            Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| String::new())).join(p)
         })
         .map(|path| {
             File::open(&path).unwrap_or_else(|e| panic!("cannot open {}: {}", path.display(), e))
