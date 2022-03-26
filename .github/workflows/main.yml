@@ -29,5 +29,3 @@ jobs:
         uses: sourcegraph/lsif-rust-action@main
       - name: Sourcegraph LSIF Uploader
         uses: sourcegraph/lsif-upload-action@main
-
-      - 
